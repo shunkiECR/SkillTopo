@@ -1,0 +1,19 @@
+{
+  "format": "skilltopo-profile",
+  "version": 1,
+  "userName": "田中（サンプル）",
+  "skills": [
+    {
+      "id": "freertos",
+      "name": "FreeRTOS",
+      "category": "embedded",
+      "description": "組み込みシステム向けのリアルタイム OS。",
+      "level": 3,
+      "interest": 4,
+      "lastUsed": "2026-08",
+      "pinned": true,
+      "related": ["c", "esp32", "zephyr"],
+      "notes": "サンプルの経歴：センサーデータの収集タスクを実装。"
+    }
+  ]
+}

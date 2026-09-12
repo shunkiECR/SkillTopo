@@ -1,0 +1,22 @@
+[
+  {"id":"electrical","name":"電気・電子","shortName":"電気・電子","color":"#e9c643","group":"engineering"},
+  {"id":"control","name":"制御","shortName":"制御","color":"#329cf6","group":"engineering"},
+  {"id":"embedded","name":"組み込み","shortName":"組み込み","color":"#a073ef","group":"engineering"},
+  {"id":"software","name":"ソフトウェア","shortName":"ソフトウェア","color":"#ed677d","group":"engineering"},
+  {"id":"mechanical","name":"機械","shortName":"機械","color":"#4ac993","group":"engineering"},
+  {"id":"webdev","name":"Web・アプリ開発","shortName":"Web・アプリ","color":"#42a5f5","group":"web"},
+  {"id":"webdesign","name":"Webデザイン・サイト制作","shortName":"サイト制作","color":"#53c6cc","group":"web"},
+  {"id":"ai_data","name":"AI・データ・自動化","shortName":"AI・データ","color":"#a38aef","group":"web"},
+  {"id":"design","name":"グラフィック・資料デザイン","shortName":"デザイン","color":"#ed89b1","group":"creative"},
+  {"id":"illustration","name":"イラスト・漫画・3D","shortName":"イラスト・3D","color":"#ac8bea","group":"creative"},
+  {"id":"video","name":"動画・写真","shortName":"動画・写真","color":"#edab68","group":"creative"},
+  {"id":"audio","name":"音楽・音声","shortName":"音楽・音声","color":"#67c7ba","group":"creative"},
+  {"id":"writing","name":"ライティング・編集","shortName":"文章・編集","color":"#d6b25e","group":"business"},
+  {"id":"marketing","name":"マーケティング・SNS","shortName":"集客・SNS","color":"#ef8290","group":"business"},
+  {"id":"office","name":"事務・業務支援","shortName":"事務・業務","color":"#66bade","group":"business"},
+  {"id":"ecommerce","name":"EC・ネットショップ","shortName":"EC運営","color":"#6cca96","group":"business"},
+  {"id":"translation","name":"翻訳・語学","shortName":"翻訳・語学","color":"#78bcea","group":"specialty"},
+  {"id":"consulting","name":"ビジネス・キャリア支援","shortName":"ビジネス支援","color":"#b294dc","group":"specialty"},
+  {"id":"architecture","name":"建築・インテリア","shortName":"建築・住まい","color":"#ceab76","group":"specialty"},
+  {"id":"education","name":"レッスン・生活・相談","shortName":"レッスン・相談","color":"#73cbb3","group":"specialty"}
+]

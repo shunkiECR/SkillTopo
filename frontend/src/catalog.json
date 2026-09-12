@@ -27,4 +27,5 @@
   {"id":"thermal","name":"熱力学","category":"mechanical","description":"熱とエネルギーの移動を理解し、機器の熱設計に活用。","level":2,"interest":1,"lastUsed":"2026-02","pinned":false,"related":["material","power"],"notes":""},
   {"id":"mechanism","name":"機構設計","category":"mechanical","description":"目的の動作を実現するメカニズムの設計と検証。","level":2,"interest":3,"lastUsed":"2026-07","pinned":false,"related":["cad","material","motor"],"notes":""},
   {"id":"zephyr","name":"Zephyr","category":"embedded","description":"小型デバイス向けのオープンソースRTOS。FreeRTOSの知識を活かして学べる次のステップ。","level":null,"interest":4,"lastUsed":"","pinned":false,"related":["freertos","c","driver"],"notes":""}
+  ,{"id":"concurrency","name":"並行処理","category":"software","description":"複数のタスクの実行と共有資源へのアクセスを管理するスキル。","level":1,"interest":3,"lastUsed":"2026-08","pinned":false,"related":["freertos","rust","c"],"notes":""}
 ]

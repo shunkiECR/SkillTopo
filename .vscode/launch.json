@@ -1,0 +1,33 @@
+{
+    // IntelliSense を使用して利用可能な属性を学べます。
+    // 既存の属性の説明をホバーして表示します。
+    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug executable 'skilltopo'",
+            "type": "lldb",
+            "request": "launch",
+            "preLaunchTask": "Build SkillTopo debug",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=skilltopo"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'skilltopo'",
+            "type": "lldb",
+            "request": "launch",
+            "preLaunchTask": "Build SkillTopo debug",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=skilltopo"
+                ]
+            }
+        }
+    ]
+}

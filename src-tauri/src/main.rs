@@ -1,12 +1,26 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, sync::Mutex};
+use std::{collections::HashSet, fs, path::Path, sync::Mutex};
 use tauri::Manager;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+mod profile;
 
-const SEED: &str = include_str!("../../ui/data/catalog.json");
+const SEED: &str = include_str!("../../frontend/src/catalog.json");
+const PROFILE_ITEMS: &str = include_str!("../../frontend/src/profile-items.json");
+const CATEGORIES: &str = include_str!("../../frontend/src/categories.json");
 
-#[derive(Debug, Serialize, Deserialize)]
+fn seed_catalog() -> Result<Vec<Skill>, String> {
+    let mut skills: Vec<Skill> = serde_json::from_str(SEED).map_err(|e| e.to_string())?;
+    let items: Vec<[String; 7]> = serde_json::from_str(PROFILE_ITEMS).map_err(|e| e.to_string())?;
+    for [id, name, category, _kind, _aliases, description, related] in items {
+        skills.push(Skill { id, name, category, description, level: None, interest: 0,
+            last_used: String::new(), pinned: false, related: related.split('|').map(str::to_owned).collect(), notes: String::new() });
+    }
+    Ok(skills)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Skill {
     id: String,
@@ -22,6 +36,9 @@ struct Skill {
 }
 
 fn validate(skills: &[Skill]) -> Result<(), String> {
+    #[derive(Deserialize)]
+    struct Category { id: String }
+    let categories: Vec<Category> = serde_json::from_str(CATEGORIES).map_err(|e| e.to_string())?;
     if skills.is_empty() || skills.len() > 500 {
         return Err("スキル数は1〜500件にしてください。".into());
     }
@@ -33,7 +50,7 @@ fn validate(skills: &[Skill]) -> Result<(), String> {
         if skill.name.trim().is_empty() || skill.name.chars().count() > 40 {
             return Err("スキル名は1〜40文字にしてください。".into());
         }
-        if !["electrical", "control", "embedded", "software", "mechanical"].contains(&skill.category.as_str())
+        if !categories.iter().any(|category| category.id == skill.category)
             || skill.level.is_some_and(|level| level > 4) || skill.interest > 4
         {
             return Err("分野または評価値が不正です。".into());
@@ -58,27 +75,32 @@ fn validate(skills: &[Skill]) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn load_catalog(app: tauri::AppHandle, lock: tauri::State<Mutex<()>>) -> Result<Vec<Skill>, String> {
-    let _guard = lock.lock().map_err(|e| e.to_string())?;
-    let path = app.path().app_data_dir().map_err(|e| e.to_string())?.join("catalog.json");
+fn read_catalog(path: &Path) -> Result<Vec<Skill>, String> {
     let data = match fs::read_to_string(path) {
         Ok(data) => data,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => SEED.to_owned(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let skills = seed_catalog()?;
+            validate(&skills)?;
+            return Ok(skills);
+        },
         Err(e) => return Err(format!("保存データを読み込めません: {e}")),
     };
-    let skills: Vec<Skill> = serde_json::from_str(&data).map_err(|e| format!("保存データの形式が不正です: {e}"))?;
+    let mut skills: Vec<Skill> = serde_json::from_str(&data).map_err(|e| format!("保存データの形式が不正です: {e}"))?;
+    if skills.is_empty() { return Err("保存されたカタログが空です。".into()); }
+    // Add only missing IDs. Preserve existing ratings, notes, dates and relations.
+    let existing: HashSet<String> = skills.iter().map(|skill| skill.id.clone()).collect();
+    for skill in seed_catalog()? {
+        if !existing.contains(&skill.id) { skills.push(skill); }
+    }
     validate(&skills)?;
     Ok(skills)
 }
 
-#[tauri::command]
-fn save_catalog(app: tauri::AppHandle, lock: tauri::State<Mutex<()>>, skills: Vec<Skill>) -> Result<(), String> {
-    validate(&skills)?;
-    let _guard = lock.lock().map_err(|e| e.to_string())?;
-    let directory = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-    let data = serde_json::to_vec_pretty(&skills).map_err(|e| e.to_string())?;
+#[cfg(test)]
+fn write_catalog(directory: &Path, skills: &[Skill]) -> Result<(), String> {
+    validate(skills)?;
+    fs::create_dir_all(directory).map_err(|e| e.to_string())?;
+    let data = serde_json::to_vec_pretty(skills).map_err(|e| e.to_string())?;
     let temporary = directory.join("catalog.tmp");
     fs::write(&temporary, data).map_err(|e| format!("保存できません: {e}"))?;
     fs::rename(temporary, directory.join("catalog.json")).map_err(|e| format!("保存を確定できません: {e}"))?;
@@ -87,8 +109,28 @@ fn save_catalog(app: tauri::AppHandle, lock: tauri::State<Mutex<()>>, skills: Ve
 
 fn main() {
     tauri::Builder::default()
-        .manage(Mutex::new(()))
-        .invoke_handler(tauri::generate_handler![load_catalog, save_catalog])
+        .plugin(tauri_plugin_dialog::init())
+        .manage(Mutex::new(profile::Session::default()))
+        .invoke_handler(tauri::generate_handler![profile::initial_profile, profile::new_profile, profile::open_profile, profile::save_profile, profile::mark_profile_dirty])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let state = window.state::<Mutex<profile::Session>>();
+                let Ok(mut session) = state.lock() else { api.prevent_close(); return; };
+                if session.dirty {
+                    api.prevent_close();
+                    if session.closing { return; }
+                    session.closing = true;
+                    let window = window.clone();
+                    window.clone().dialog().message("未保存の変更を破棄して終了しますか？")
+                        .title("SkillTopo — 未保存の変更")
+                        .buttons(MessageDialogButtons::OkCancelCustom("破棄して終了".into(), "キャンセル".into()))
+                        .show(move |discard| {
+                            if discard { let _ = window.destroy(); }
+                            else if let Ok(mut s) = window.state::<Mutex<profile::Session>>().lock() { s.closing = false; }
+                        });
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("SkillTopoの起動に失敗しました");
 }
@@ -96,13 +138,14 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn seed() -> Vec<Skill> { serde_json::from_str(SEED).unwrap() }
+    fn seed() -> Vec<Skill> { seed_catalog().unwrap() }
     #[test]
     fn seed_and_json_roundtrip_are_valid() {
         let skills = seed();
         validate(&skills).unwrap();
         let restored: Vec<Skill> = serde_json::from_str(&serde_json::to_string(&skills).unwrap()).unwrap();
-        assert_eq!(restored.len(), 28);
+        assert_eq!(restored.len(), skills.len());
+        assert!(restored.len() > 150);
         validate(&restored).unwrap();
     }
     #[test]
@@ -122,5 +165,51 @@ mod tests {
         let mut skills = seed();
         skills[0].last_used = "2026-13".into();
         assert!(validate(&skills).is_err());
+    }
+
+    #[test]
+    fn saves_replaces_and_reloads_without_destroying_invalid_data() {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("skilltopo-test-{}-{unique}", std::process::id()));
+        let path = directory.join("catalog.json");
+        let mut skills = read_catalog(&path).unwrap();
+        write_catalog(&directory, &skills).unwrap();
+        skills[0].level = Some(4);
+        write_catalog(&directory, &skills).unwrap();
+        assert_eq!(read_catalog(&path).unwrap()[0].level, Some(4));
+        let before = fs::read(&path).unwrap();
+        skills[0].level = Some(9);
+        assert!(write_catalog(&directory, &skills).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        fs::write(&path, b"broken-json").unwrap();
+        assert!(read_catalog(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"broken-json");
+        fs::remove_file(&path).unwrap();
+        fs::remove_dir(&directory).unwrap();
+    }
+
+    #[test]
+    fn upgrades_old_catalog_without_resetting_existing_work() {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("skilltopo-migration-{}-{unique}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("catalog.json");
+        let mut old: Vec<Skill> = serde_json::from_str(SEED).unwrap();
+        old[0].level = Some(4);
+        old[0].notes = "ユーザーが記入したメモ".into();
+        old[0].pinned = true;
+        let original = serde_json::to_vec(&old).unwrap();
+        fs::write(&path, &original).unwrap();
+        let upgraded = read_catalog(&path).unwrap();
+        assert_eq!(upgraded.len(), seed().len());
+        assert_eq!(upgraded[0].level, Some(4));
+        assert_eq!(upgraded[0].notes, old[0].notes);
+        assert!(upgraded[0].pinned);
+        assert!(upgraded.iter().filter(|s| !old.iter().any(|o| o.id == s.id)).all(|s| s.level.is_none() && s.interest == 0));
+        assert_eq!(fs::read(&path).unwrap(), original, "Loading must not rewrite the saved file");
+        write_catalog(&directory, &upgraded).unwrap();
+        assert_eq!(read_catalog(&path).unwrap().len(), upgraded.len(), "Repeated upgrade must not duplicate items");
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(directory).unwrap();
     }
 }

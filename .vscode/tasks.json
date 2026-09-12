@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [{
+    "label": "Build SkillTopo debug",
+    "type": "shell",
+    "command": "powershell",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/build-app.ps1", "-DebugBuild"],
+    "problemMatcher": ["$rustc"],
+    "group": "build"
+  }]
+}

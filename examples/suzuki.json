@@ -1,0 +1,19 @@
+{
+  "format": "skilltopo-profile",
+  "version": 1,
+  "userName": "鈴木（サンプル）",
+  "skills": [
+    {
+      "id": "freertos",
+      "name": "FreeRTOS",
+      "category": "embedded",
+      "description": "組み込みシステム向けのリアルタイム OS。",
+      "level": 1,
+      "interest": 2,
+      "lastUsed": "2026-07",
+      "pinned": false,
+      "related": ["c", "esp32", "zephyr"],
+      "notes": "サンプルの経歴：入門教材でタスクとキューを学習。"
+    }
+  ]
+}
