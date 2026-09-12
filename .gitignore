@@ -1,0 +1,6 @@
+/target/
+/src-tauri/target/
+/.tools/
+/artifacts/
+__pycache__/
+*.log
