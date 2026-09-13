@@ -1,0 +1,62 @@
+@startuml
+title SkillTopo データモデル
+hide methods
+class Profile {
+  format: "skilltopo-profile"
+  version: 1
+  userName: string
+}
+class Skill {
+  id: string
+  name: string
+  category: string
+  description: string
+  level: 0..4 | null
+  interest: 0..4
+  lastUsed: "" | YYYY-MM
+  pinned: boolean
+  related: string[]
+  notes: string
+}
+class Category <<built-in>> {
+  id: string
+  name: string
+  shortName: string
+  color: string
+  group: string
+}
+class CategoryGroup <<built-in>> {
+  id: string
+  name: string
+}
+class Metadata <<frontend only>> {
+  id: string
+  kind: skill | tool | language
+  aliases: string
+}
+class ProfileDocument <<UI / IPC>> {
+  path: string | null
+  dirty: boolean
+}
+class Session <<Rust memory>> {
+  path: PathBuf | None
+  original: bytes | None
+  dirty: bool
+  closing: bool
+}
+Profile "1" *-- "1..500" Skill : skills
+Skill "*" --> "1" Category : category ID
+Category "*" --> "1" CategoryGroup : group ID
+Skill --> Skill : related IDs
+Metadata ..> Skill : IDで対応
+ProfileDocument "1" *-- "1" Profile
+ProfileDocument .. Session : IPC成功時に整合
+note bottom of Profile
+ファイルに保存するのは Profile と skills。
+Category / Metadata / UI状態 / Session は保存しない。
+end note
+note right of Skill
+related は片方向・重複を許容。
+参照先なしと自己参照は拒否。
+end note
+@enduml

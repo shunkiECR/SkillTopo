@@ -1,0 +1,47 @@
+@startuml
+title SkillTopo システム構成
+left to right direction
+skinparam componentStyle rectangle
+actor "利用者" as User
+package "Windows / SkillTopo.exe" {
+  package "WebView2 / React" {
+    component "App / components\n画面構成・表示部品" as App
+    component "MapExplorer / AllSkillsGraph\nSVG グラフ" as Graph
+    component "useCatalog.ts\nProfileDocument / current ref" as Hook
+    component "persistence.ts\n実行環境の分岐" as Persist
+    component "model.ts\n型・検索・色・合成" as Model
+  }
+  package "Rust / Tauri" {
+    component "main / catalog\n起動・型・検証・終了確認" as Main
+    component "profile / submodules\nIPC / format / storage" as Profile
+    component "Mutex<Session>\npath / original / dirty / closing" as Session
+    component "tauri-plugin-dialog" as Dialog
+  }
+  artifact "標準カタログ\n3つのJSON" as Seed
+}
+file "プロフィール\n.skilltopo / .json" as File
+package "ブラウザプレビュー時" {
+  component "File API / Blob\nCompressionStream" as Browser
+}
+User --> App
+App --> Graph : props / 選択
+App --> Hook : 編集・ファイル操作
+App --> Model
+Graph --> Model
+Hook --> Persist
+Persist --> Profile : Tauri invoke
+Persist --> Browser : __TAURI__ なし
+Main --> Profile : コマンド登録
+Main --> Session : 終了確認
+Profile --> Session
+Profile --> Dialog
+Profile --> Main : validate / seed_catalog
+Profile --> File : 読込・書込
+Browser --> File : 選択・ダウンロード
+Model --> Seed
+Main --> Seed : include_str!
+note bottom of Hook
+編集中の全プロフィールはフロントエンドが保持。
+Rust Session はファイル状態を保持。
+end note
+@enduml

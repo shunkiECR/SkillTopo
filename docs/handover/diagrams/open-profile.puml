@@ -1,0 +1,44 @@
+@startuml
+title デスクトップのプロフィール読み込み（legacy=false）
+actor 利用者 as User
+participant "useCatalog.run" as Hook
+participant "persistence.ts" as Persist
+participant "profile.rs" as Rust
+participant "Dialog" as Dialog
+participant "Session" as Session
+database "File" as File
+User -> Hook : ファイルを開く
+Hook -> Hook : busy=true / saving=true\nmarking Promiseを待つ
+Hook -> Persist : openProfile(dirty, false)
+Persist -> Rust : invoke open_profile {legacy:false}
+Rust -> Session : dirtyを確認
+opt dirty=true
+  Rust -> Dialog : 未保存の変更を破棄するか
+  Dialog --> Rust : 破棄 / キャンセル
+end
+alt 破棄確認をキャンセル
+  Rust --> Persist : null
+else 続行
+  Rust -> Dialog : .skilltopo / .json を選択
+  Dialog --> Rust : path / キャンセル
+  alt 選択をキャンセル
+    Rust --> Persist : null
+  else ファイルを選択
+    Rust -> File : 最大8 MiB + 1バイトまで読む
+    File --> Rust : 元バイト列
+    Rust -> Rust : ヘッダ判定 / 必要ならgzip展開\nJSON解析 / 不足標準項目補完 / 検証
+    alt 読込・検証が成功
+      Rust -> Session : path / originalを更新\ndirty=false / closing=false
+      Rust --> Persist : Document
+    else 失敗
+      Rust --> Persist : Err(String)
+    end
+  end
+end
+Persist --> Hook : Document / null / rejection
+Hook -> Hook : Documentならaccept\nnullは維持 / rejectionはエラー表示\nbusy=false / saving=false
+note over Rust,Session
+全検証が完了するまでは Session を置き換えない。
+通常の不足項目補完だけでは dirty にしない。
+end note
+@enduml

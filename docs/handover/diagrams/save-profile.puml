@@ -1,0 +1,58 @@
+@startuml
+title デスクトップの編集と保存
+actor 利用者 as User
+participant "App / useCatalog" as UI
+participant "persistence.ts" as Persist
+participant "profile.rs" as Rust
+participant "Session" as Session
+participant "Dialog" as Dialog
+database "File system" as FS
+User -> UI : 評価・メモ等を編集
+UI -> UI : accept(profile, dirty=true)
+UI -> Persist : markDirty()
+Persist -> Rust : mark_profile_dirty
+Rust -> Session : dirty=true
+Rust --> Persist : 成功
+Persist --> UI : marking Promise完了
+User -> UI : 保存 / 名前を付けて保存
+UI -> UI : busy=true / saving=true\nmarking完了待ち
+UI -> Persist : saveProfile(profile, saveAs, fileFormat)
+Persist -> Persist : structuredClone(profile)
+Persist -> Rust : save_profile(snapshot, saveAs, fileFormat)
+Rust -> Rust : validate_profile
+Rust -> Session : current_path取得
+opt saveAs=true または保存先なし
+  Rust -> Dialog : 選択形式に対応する保存ダイアログ
+  Dialog --> Rust : path / キャンセル
+end
+alt ダイアログをキャンセル
+  Rust --> Persist : null
+else 保存を続行
+  Rust -> Rust : 拡張子検証・必要なら補完
+  opt 現在のパスへの保存
+    Rust -> FS : 現在のファイルを読む
+    FS --> Rust : bytes
+    Rust -> Session : originalと比較
+  end
+  alt 検証・比較に成功
+    Rust -> Rust : JSON または ヘッダ+gzip にencode
+    Rust -> FS : 同じディレクトリに一時ファイル作成\nwrite_all / sync_all / close
+    Rust -> FS : renameで保存先へ反映
+    alt 書込み成功
+      Rust -> Session : path / original更新、dirty=false
+      Rust --> Persist : Document
+    else 書込み失敗
+      Rust -> FS : 一時ファイル削除を試行
+      Rust --> Persist : Err(String)
+    end
+  else 検証失敗 / 外部変更
+    Rust --> Persist : Err(String)
+  end
+end
+Persist --> UI : Document / null / rejection
+UI -> UI : 成功時のみaccept\n失敗時は編集内容を維持してエラー表示\nbusy=false / saving=false
+note over Rust,FS
+図は主要経路。初期検証・形式判定・エンコード等の
+各段階の例外も同様に rejection として返る。
+end note
+@enduml

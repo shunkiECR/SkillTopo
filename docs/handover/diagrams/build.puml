@@ -1,0 +1,28 @@
+@startuml
+title SkillTopo のビルドと配布
+start
+:scripts/build-app.ps1;
+:portable NodeがあればPATH追加\nNode/npm・cargoの存在確認;
+if (frontend依存が未導入?) then (yes)
+  :npm ci;
+endif
+:npm run build\ntsc --noEmit → vite build;
+:frontend/dist に静的ファイル生成;
+if (DebugBuild?) then (yes)
+  :cargo build -p skilltopo --locked;
+  :target/debug/skilltopo.exe;
+else (no)
+  :cargo build\nrelease / locked / package=skilltopo;
+  :target/release/skilltopo.exe;
+  :dist/SkillTopo.exe へコピー\nLICENSE / examples をコピー;
+endif
+note right
+Rust/Tauriビルド時にfrontend/distを埋め込む。
+標準カタログもRustにinclude_str!で埋め込む。
+各工程失敗時はスクリプトを停止する。
+end note
+if (Run?) then (yes)
+  :生成したexeを起動;
+endif
+stop
+@enduml

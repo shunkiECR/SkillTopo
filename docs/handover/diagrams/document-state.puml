@@ -1,0 +1,33 @@
+@startuml
+title フロントエンドのドキュメント状態（概念図）
+[*] --> Loading
+state "初期化中\nready=false" as Loading
+state "初期化失敗\nloadError" as LoadError
+state "操作可能\nready=true / busy=false" as Ready {
+  state "変更なし\ndirty=false" as Clean
+  state "未保存変更あり\ndirty=true" as Dirty
+  Clean --> Dirty : 編集 / 評価リセット
+  Dirty --> Dirty : 追加編集
+}
+state "ファイル操作中\nbusy=true / saving=true" as Busy
+state "終了確認中\nRust closing=true" as Closing
+Loading --> Clean : initialProfile成功
+Loading --> LoadError : 初期化失敗
+LoadError --> Loading : 再読み込み
+Ready --> Busy : 新規 / 開く / 保存\n直前の状態・内容を保持
+Busy --> Clean : 新規 / 通常読込 / 保存成功
+Busy --> Dirty : 旧データ取込成功
+Busy --> Ready : キャンセル / 例外\n直前のdirty・内容を維持
+Clean --> [*] : 終了
+Dirty --> Closing : 終了要求
+Closing --> Dirty : キャンセル
+Closing --> [*] : 破棄して終了
+note right of Clean
+新規の保存先なしも dirty=false。
+「変更なし」は保存先がある意味ではない。
+end note
+note right of Busy
+エラー表示はドキュメントと独立。
+dirty通知Promiseの失敗もここで捕捉する。
+end note
+@enduml
